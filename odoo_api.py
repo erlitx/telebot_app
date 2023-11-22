@@ -60,3 +60,24 @@ class OdooRPC:
 
         except Exception as e:
             logger.debug(f'Failed to get AKPN Users from Odoo: {e}')
+
+    # Create a new 'telebot.group' record in Odoo within a given 'telegram_chat_id', 'chat_title' and 'chat_type'
+    # Before creating a new record check if the 'telegram_chat_id' already exists in Odoo
+    def create_telegram_group(self, telegram_chat_id, chat_title, chat_type):
+        try:
+            odoo = self.connect()
+            get_tg_group = odoo.env['telebot.group'].search([('telegram_chat_id', '=', telegram_chat_id)])
+            if not get_tg_group:
+                # Create a new 'telegram.group' record in Odoo
+                new_group = odoo.env['telebot.group'].create({
+                    'telegram_chat_id': telegram_chat_id,
+                    'name': chat_title,
+                    'type': chat_type,
+                })
+                logger.debug(f'New telegram.group created: {chat_title}, {new_group}')
+                return new_group
+            else:
+                logger.debug(f'Telegram group already exists. Odoo ID: {get_tg_group}')
+                return get_tg_group
+        except Exception as e:
+            logger.debug(f'Failed to create a new telegram.group: {e}')

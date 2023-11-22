@@ -24,6 +24,8 @@ bot = telebot.TeleBot(token=TOKEN)
 # Handle the /start command
 @bot.message_handler(commands=['start'])
 def start(message):
+    user_id = message.from_user.id
+    logger.debug(f'USER ID: {user_id}')
     markup = telebot.types.ForceReply(selective=False)
     bot.send_message(
         message.chat.id,
@@ -35,6 +37,28 @@ def start(message):
     )
 
     bot.send_message(message.chat.id, text='Введите ваш Telegram PIN:', reply_markup=markup)
+
+
+# Get all the groups to which the Bot were added 
+# Create the same groups in Odoo
+@bot.message_handler(func=lambda message: True, content_types=['new_chat_members'])
+def new_chat_member(message):
+    try:
+        # Check if the bot is one of the new chat members
+        logger.debug(f'New chat member: {message.new_chat_members}')
+        for member in message.new_chat_members:
+            #Check if the bot is one of the new chat members
+            if member.id == bot.get_me().id:
+                chat_id = message.chat.id
+                chat_title = message.chat.title
+                chat_type = message.chat.type
+                logger.debug(f'Bot has been added to a new group: {chat_id}, {chat_title}, {chat_type}')
+                bot.send_message(chat_id, "Thank you for adding me to this group!")
+                odoo = OdooRPC()
+                odoo.create_telegram_group(chat_id, chat_title, chat_type)
+    except Exception as e:
+        logger.debug(f'Failed to create a new group in Odoo: {e}')
+
 
 
 # Handle all other messages with content_type 'text' (content_types defaults to ['text'])
@@ -79,7 +103,14 @@ def echo_message(message):
         pass
 
 
+
+
+
+
 # Run the bot
 bot.polling()
+
+
+
 
 
