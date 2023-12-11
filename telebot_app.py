@@ -24,20 +24,22 @@ bot = telebot.TeleBot(token=TOKEN)
 # Handle the /start command
 @bot.message_handler(commands=['start'])
 def start(message):
-    user_id = message.from_user.id
-    logger.debug(f'USER ID: {user_id}')
-    markup = telebot.types.ForceReply(selective=False)
-    bot.send_message(
-        message.chat.id,
-        '''Привет, я ваш помощник члена АКПН. Я напомню Вам о важных событиях, предложу участие в целевых группах и буду присылать ссылки на оплату членства.
+    try:
+        user_id = message.from_user.id
+        logger.debug(f'USER ID: {user_id}')
+        markup = telebot.types.ForceReply(selective=False)
+        bot.send_message(
+            message.chat.id,
+            '''Привет, я ваш помощник члена АКПН. Я напомню Вам о важных событиях, предложу участие в целевых группах и буду присылать ссылки на оплату членства.
 
-Найдите свой Telegram PIN в личном кабинет на сайте АКПН https://akpn.org/my/account''',
-        disable_web_page_preview=True,
-        reply_to_message_id=message.message_id
-    )
+    Найдите свой Telegram PIN в личном кабинет на сайте АКПН https://akpn.org/my/account''',
+            disable_web_page_preview=True,
+            reply_to_message_id=message.message_id
+        )
 
-    bot.send_message(message.chat.id, text='Введите ваш Telegram PIN:', reply_markup=markup)
-
+        bot.send_message(message.chat.id, text='Введите ваш Telegram PIN:', reply_markup=markup)
+    except Exception as e:
+        logger.debug(f'Failed to send a message on /start: {e}')
 
 # Get all the groups to which the Bot were added 
 # Create the same groups in Odoo
@@ -47,6 +49,7 @@ def new_chat_member(message):
         # Check if the bot is one of the new chat members
         logger.debug(f'New chat member: {message.new_chat_members}')
         for member in message.new_chat_members:
+            logger.debug(f'New chat member ID: {member.id}')
             #Check if the bot is one of the new chat members
             if member.id == bot.get_me().id:
                 chat_id = message.chat.id
@@ -64,16 +67,15 @@ def new_chat_member(message):
 # Handle all other messages with content_type 'text' (content_types defaults to ['text'])
 @bot.message_handler(func=lambda message: True)
 def echo_message(message):
-    pprint.pprint(f'Reply to: {message}')
-    markup = telebot.types.ForceReply(selective=False)
+    try:
+        pprint.pprint(f'Reply to: {message}')
+        markup = telebot.types.ForceReply(selective=False)
 
-    # Check if the message is a reply to a previous message with the text "Введите ваш Telegram PIN:"
-    # If so, check if the 'telegram_pin' is valid and set the telegram_chat_id for the AKPN user
-    if (message.reply_to_message is not None 
-        and (message.reply_to_message.text == "Введите ваш Telegram PIN:" 
-        or message.reply_to_message.text == "Не могу найти в базе АКПН такого участника. Проверьте PIN и попробуйте еще раз.")):
-        
-        try:
+        # Check if the message is a reply to a previous message with the text "Введите ваш Telegram PIN:"
+        # If so, check if the 'telegram_pin' is valid and set the telegram_chat_id for the AKPN user
+        if (message.reply_to_message is not None 
+            and (message.reply_to_message.text == "Введите ваш Telegram PIN:" 
+            or message.reply_to_message.text == "Не могу найти в базе АКПН такого участника. Проверьте PIN и попробуйте еще раз.")):
             telegram_pin = message.text
             logger.debug(f'PIN: {telegram_pin}')
             odoo = OdooRPC()
@@ -97,14 +99,8 @@ def echo_message(message):
                 bot.reply_to(message, 
                             text=f'''Не могу найти в базе АКПН такого участника. Проверьте PIN и попробуйте еще раз.''', reply_markup=markup
                             )
-        except Exception as e:
-            logger.debug(f'Failed to get AKPN Users from Odoo: {e}')
-    else:
-        pass
-
-
-
-
+    except Exception as e:
+        logger.debug(f'Failed to get AKPN Users from Odoo: {e}')
 
 
 # Run the bot
